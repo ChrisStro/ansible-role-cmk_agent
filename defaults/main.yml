@@ -1,0 +1,3 @@
+cmk_agent_version: "2.3.0p24"
+cmk_agent_automation_user: automation
+cmk_agent_site: cmk

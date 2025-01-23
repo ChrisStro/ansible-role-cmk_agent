@@ -1,0 +1,9 @@
+- name: Register cmk agent
+  ansible.builtin.command: >
+    cmk-agent-ctl register --hostname {{ ansible_hostname }}
+    --server {{ cmk_agent_cmkserver }} --site {{ cmk_agent_site }}
+    --user {{ cmk_agent_automation_user }} --password '{{ cmk_agent_automation_pwd }}'
+    --trust-cert
+  changed_when: true
+  no_log: true
+  register: cmk_agent_register

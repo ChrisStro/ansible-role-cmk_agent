@@ -1,0 +1,55 @@
+- name: Install dependencies on Debian-based systems (Ubuntu/Debian)
+  ansible.builtin.apt:
+    name:
+      - wget
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+
+- name: Download Checkmk Raw Agent package
+  ansible.builtin.get_url:
+    url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/agents/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+    dest: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+    mode: "0644"
+
+- name: Install Checkmk Raw Agent package
+  ansible.builtin.apt:
+    deb: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+
+- name: Check checkmk host via REST API
+  ansible.builtin.uri:
+    url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/api/1.0/objects/host_config/{{ cmk_agent_hostname }}"
+    headers:
+      Authorization: "Bearer {{ cmk_agent_automation_user }} {{ cmk_agent_automation_pwd }}"
+      Accept: "application/json"
+      Content-Type: "application/json"
+  register: cmk_agent_rest_check
+  failed_when:
+    - cmk_agent_rest_check.status != 404
+    - cmk_agent_rest_check.status != 200
+
+- name: Create new checkmk host via REST API
+  when: cmk_agent_rest_check.status == 404
+  ansible.builtin.uri:
+    url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/api/1.0/domain-types/host_config/collections/all"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ cmk_agent_automation_user }} {{ cmk_agent_automation_pwd }}"
+      Accept: "application/json"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      attributes:
+        ipaddress: "{{ ansible_default_ipv4.address }}"
+      folder: "/"
+      host_name: "{{ cmk_agent_hostname }}"
+  register: cmk_agent_rest_host
+  changed_when: cmk_agent_rest_host.status == 200
+
+- name: Check cmk agent state
+  ansible.builtin.command: >
+    cmk-agent-ctl status
+  register: cmk_agent_status
+  changed_when: "'No connections' in cmk_agent_status.stdout or 'Not registered' in cmk_agent_status.stdout"
+  notify: Register cmk agent
