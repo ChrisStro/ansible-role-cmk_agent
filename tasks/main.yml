@@ -22,15 +22,16 @@
       Authorization: "Bearer {{ cmk_agent_automation_user }} {{ cmk_agent_automation_pwd }}"
       Accept: "application/json"
       Content-Type: "application/json"
+  become: false
+  delegate_to: localhost
+  run_once: true
   register: cmk_agent_rest_cmkversion
 
 - name: Set fact for cmk_agent_version
   ansible.builtin.set_fact:
     cmk_agent_version: "{{ cmk_agent_rest_cmkversion.x_checkmk_version }}"
-
-- name: Running checkmk version of {{ cmk_agent_cmkserver }}
-  ansible.builtin.debug:
-    msg: "{{ cmk_agent_version }}"
+  delegate_to: localhost
+  run_once: true
 
 - name: Running on distributions based on {{ ansible_os_family }}
   ansible.builtin.include_tasks: "_{{ ansible_os_family | lower }}-tasks.yml"
