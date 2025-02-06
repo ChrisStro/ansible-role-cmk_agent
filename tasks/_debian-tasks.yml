@@ -7,21 +7,6 @@
     state: present
     update_cache: true
 
-# - name: Download Checkmk Raw Agent package
-#   ansible.builtin.get_url:
-#     url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/agents/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
-#     dest: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
-#     mode: "0644"
-
-# - name: Install Checkmk Raw Agent package
-#   ansible.builtin.apt:
-#     deb: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
-
-- name: Install check_mk_agent version {{ cmk_agent_version }}
-  ansible.builtin.apt:
-    # force: true
-    deb: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/agents/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
-
 - name: Check checkmk host via REST API
   ansible.builtin.uri:
     url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/api/1.0/objects/host_config/{{ cmk_agent_hostname }}"
@@ -52,9 +37,43 @@
   register: cmk_agent_rest_host
   changed_when: cmk_agent_rest_host.status == 200
 
-- name: Check cmk agent state
-  ansible.builtin.command: >
-    cmk-agent-ctl status
-  register: cmk_agent_status
-  changed_when: "'No connections' in cmk_agent_status.stdout or 'Not registered' in cmk_agent_status.stdout"
-  notify: Register cmk agent
+# - name: Transfer check-mk-agent to hosts
+#   ansible.builtin.copy:
+#     src: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+#     dest: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+#     mode: "0644"
+
+# - name: Install Checkmk Raw Agent package
+#   ansible.builtin.apt:
+#     deb: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+
+- name: Install check_mk_agent version {{ cmk_agent_version }}
+  when: ansible_architecture != "aarch64"
+  block:
+    - name: Install non arch check_mk_agent version {{ cmk_agent_version }}
+      ansible.builtin.apt:
+        # force: true
+        deb: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/agents/check-mk-agent_{{ cmk_agent_version }}-1_all.deb"
+
+    - name: Check cmk agent state
+      ansible.builtin.command: >
+        cmk-agent-ctl status
+      register: cmk_agent_status
+      changed_when: "'No connections' in cmk_agent_status.stdout or 'Not registered' in cmk_agent_status.stdout"
+      notify: Register cmk agent
+
+- name: Install arch legacy check_mk_agent version {{ cmk_agent_version }}
+  when: ansible_architecture == "aarch64"
+  block:
+    - name: Install alien pkg for rpm support in debian
+      ansible.builtin.apt:
+        name: alien
+        state: present
+
+    - name: Download Checkmk legacy Agent package
+      ansible.builtin.get_url:
+        url: "https://{{ cmk_agent_cmkserver }}/{{ cmk_agent_site }}/check_mk/agents/check-mk-agent_{{ cmk_agent_version }}-1.noarch.rpm"
+        dest: "/tmp/check-mk-agent_{{ cmk_agent_version }}-1.noarch.rpm"
+        mode: "0644"
+      become: true
+      notify: Install legacy check-mk-agent
