@@ -31,7 +31,7 @@
     body_format: json
     body:
       attributes:
-        ipaddress: "{{ ansible_default_ipv4.address }}"
+        ipaddress: "{{ ansible_host }}"
       folder: "/"
       host_name: "{{ cmk_agent_hostname }}"
   register: cmk_agent_rest_host
