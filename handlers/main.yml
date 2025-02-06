@@ -9,6 +9,6 @@
   register: cmk_agent_register
 
 - name: Install legacy check-mk-agent
-  ansible.builtin.command: aliens -id /tmp/check-mk-agent_{{ cmk_agent_version }}-1.noarch.rpm
+  ansible.builtin.command: aliens -id /tmp/check-mk-agent-{{ cmk_agent_version }}-1.noarch.rpm
   become: true
   changed_when: true
